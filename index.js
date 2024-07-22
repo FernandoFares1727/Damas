@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 board.appendChild(cell);
             }
         }
+        attachCellEvents();
     };
 
     const createPiece = (color, row, col) => {
@@ -171,13 +172,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const hideModal = () => {
         modal.style.display = 'none';
         createBoard();
+        turn = 'red';
+    };
+
+    const attachCellEvents = () => {
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.addEventListener('click', () => movePiece(cell));
+        });
     };
 
     restartButton.addEventListener('click', hideModal);
 
     createBoard();
-
-    document.querySelectorAll('.cell').forEach(cell => {
-        cell.addEventListener('click', () => movePiece(cell));
-    });
 });
