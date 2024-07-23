@@ -43,7 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
         piece.dataset.row = row;
         piece.dataset.col = col;
         if (color === 'red') {
-            piece.addEventListener('click', () => selectPiece(piece));
+            piece.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectPiece(piece);
+            });
         }
         return piece;
     };
@@ -59,30 +62,54 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const movePiece = (targetCell) => {
-        const row = parseInt(targetCell.dataset.row);
-        const col = parseInt(targetCell.dataset.col);
-        if (selectedPiece && targetCell.classList.contains('black') && !targetCell.hasChildNodes()) {
-            const selectedRow = parseInt(selectedPiece.dataset.row);
-            const selectedCol = parseInt(selectedPiece.dataset.col);
-            const rowDiff = Math.abs(selectedRow - row);
-            const colDiff = Math.abs(selectedCol - col);
+        if (!selectedPiece) return;
 
-            if ((rowDiff === 1 && colDiff === 1) || (rowDiff === 2 && colDiff === 2 && canCapture(selectedRow, selectedCol, row, col))) {
-                targetCell.appendChild(selectedPiece);
-                selectedPiece.dataset.row = row;
-                selectedPiece.dataset.col = col;
-                if (rowDiff === 2 && colDiff === 2) {
-                    capturePiece(selectedRow, selectedCol, row, col);
-                }
-                selectedPiece.classList.remove('selected');
-                selectedPiece = null;
-                turn = 'green';
-                checkVictory();
-                if (turn === 'green') {
-                    setTimeout(moveGreenPiece, 500);
-                }
+        const targetRow = parseInt(targetCell.dataset.row);
+        const targetCol = parseInt(targetCell.dataset.col);
+        const startRow = parseInt(selectedPiece.dataset.row);
+        const startCol = parseInt(selectedPiece.dataset.col);
+
+        if (!targetCell.classList.contains('black') || targetCell.hasChildNodes()) return;
+
+        const rowDiff = Math.abs(targetRow - startRow);
+        const colDiff = Math.abs(targetCol - startCol);
+
+        if (isValidMove(startRow, startCol, targetRow, targetCol, rowDiff, colDiff)) {
+            if (rowDiff === 2 && colDiff === 2) {
+                capturePiece(startRow, startCol, targetRow, targetCol);
+            }
+
+            // Move the piece
+            targetCell.appendChild(selectedPiece);
+            selectedPiece.dataset.row = targetRow;
+            selectedPiece.dataset.col = targetCol;
+            selectedPiece.classList.remove('selected');
+            selectedPiece = null;
+            turn = 'green';
+            checkVictory();
+            if (turn === 'green') {
+                setTimeout(moveGreenPiece, 500);
             }
         }
+    };
+
+    const isValidMove = (startRow, startCol, targetRow, targetCol, rowDiff, colDiff) => {
+        const targetCell = getCell(targetRow, targetCol);
+        if (!targetCell) return false;
+
+        const isEmpty = !targetCell.hasChildNodes();
+        const isForwardMove = (turn === 'red' && targetRow < startRow) ||
+                              (turn === 'green' && targetRow > startRow);
+
+        if (rowDiff === 1 && colDiff === 1) {
+            return isEmpty && isForwardMove;
+        }
+
+        if (rowDiff === 2 && colDiff === 2) {
+            return canCapture(startRow, startCol, targetRow, targetCol);
+        }
+
+        return false;
     };
 
     const canCapture = (startRow, startCol, endRow, endCol) => {
@@ -122,16 +149,19 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const dir of directions) {
                 const newRow = currentRow + dir.row;
                 const newCol = currentCol + dir.col;
-                if (isValidMove(newRow, newCol) && (!moved || canCapture(currentRow, currentCol, newRow, newCol))) {
+                if (isValidMove(currentRow, currentCol, newRow, newCol, Math.abs(dir.row), Math.abs(dir.col))) {
                     const targetCell = getCell(newRow, newCol);
-                    targetCell.appendChild(piece);
-                    piece.dataset.row = newRow;
-                    piece.dataset.col = newCol;
-                    if (Math.abs(dir.row) === 2) {
-                        capturePiece(currentRow, currentCol, newRow, newCol);
+                    if (targetCell) {
+                        if (targetCell.hasChildNodes()) continue; // Skip if target cell is not empty
+                        targetCell.appendChild(piece);
+                        piece.dataset.row = newRow;
+                        piece.dataset.col = newCol;
+                        if (Math.abs(dir.row) === 2) {
+                            capturePiece(currentRow, currentCol, newRow, newCol);
+                        }
+                        moved = true;
+                        break;
                     }
-                    moved = true;
-                    break;
                 }
             }
             if (moved) break;
@@ -139,14 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         turn = 'red';
         checkVictory();
-    };
-
-    const isValidMove = (row, col) => {
-        if (row < 0 || row >= size || col < 0 || col >= size) {
-            return false;
-        }
-        const targetCell = getCell(row, col);
-        return targetCell && targetCell.classList.contains('black') && !targetCell.hasChildNodes();
     };
 
     const getCell = (row, col) => {
